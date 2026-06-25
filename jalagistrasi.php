@@ -3,7 +3,7 @@
  * Plugin Name:       Jalagistrasi
  * Plugin URI:        https://webane.id
  * Description:       Sistem Pendaftaran Mahasiswa Baru untuk WordPress.
- * Version:           0.1.0
+ * Version:           0.1.1
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            Webane Indonesia
@@ -40,6 +40,13 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 use Webane\Jalagistrasi\Installer;
 use Webane\Jalagistrasi\Plugin;
+
+// Konstanta (JG_PLUGIN_DIR dkk) HARUS siap sebelum register_activation_hook —
+// WordPress menjalankan hook aktivasi lebih awal dari 'plugins_loaded', jadi
+// kalau ini cuma didefinisikan lewat Plugin::boot() (hook plugins_loaded),
+// Installer::activate() akan fatal error "Undefined constant" saat plugin
+// pertama kali diaktifkan.
+Plugin::defineConstants();
 
 // Hook aktivasi & deaktivasi — harus didaftarkan sebelum Plugin::boot().
 register_activation_hook(__FILE__, [Installer::class, 'activate']);

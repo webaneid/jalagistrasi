@@ -26,7 +26,7 @@ use Webane\Jalagistrasi\Frontend\RegistrasiController;
  */
 final class Plugin
 {
-    public const VERSION     = '0.1.0';
+    public const VERSION     = '0.1.1';
     public const DB_VERSION  = '6';
     public const SLUG        = 'jalagistrasi';
     public const TEXT_DOMAIN = 'jalagistrasi';
@@ -35,7 +35,7 @@ final class Plugin
 
     private function __construct()
     {
-        $this->defineConstants();
+        self::defineConstants();
         $this->registerHooks();
         self::buildUpdateChecker();
     }
@@ -50,8 +50,24 @@ final class Plugin
         }
     }
 
-    private function defineConstants(): void
+    /**
+     * Definisikan konstanta plugin. PUBLIC STATIC + idempotent (guard `defined()`
+     * per konstanta) supaya bisa dipanggil lebih awal dari jalagistrasi.php —
+     * SEBELUM register_activation_hook(), bukan cuma lewat boot() di 'plugins_loaded'.
+     *
+     * Kenapa ini penting: register_activation_hook() (Installer::activate(), yang
+     * import data wilayah dkk) dijalankan WordPress LEBIH AWAL dari 'plugins_loaded'
+     * pada request aktivasi plugin. Kalau konstanta cuma didefinisikan di boot(),
+     * Installer::activate() akan fatal error "Undefined constant JG_PLUGIN_DIR"
+     * tepat saat plugin pertama kali diaktifkan di server baru (lihat percakapan
+     * "fatal error saat aktivasi di server" — kejadian nyata, bukan teoretis).
+     */
+    public static function defineConstants(): void
     {
+        if (defined('JG_VERSION')) {
+            return;
+        }
+
         define('JG_VERSION',     self::VERSION);
         define('JG_DB_VERSION',  self::DB_VERSION);
         define('JG_PLUGIN_FILE', dirname(__DIR__) . '/jalagistrasi.php');
