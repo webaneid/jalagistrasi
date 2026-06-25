@@ -1,0 +1,38 @@
+{
+    "name": "webane/jalagistrasi",
+    "description": "Plugin WordPress Pendaftaran Mahasiswa Baru oleh Webane Indonesia",
+    "type": "wordpress-plugin",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Webane Indonesia",
+            "email": "hello@webane.id",
+            "homepage": "https://webane.id"
+        }
+    ],
+    "require": {
+        "php": ">=8.1",
+        "phpoffice/phpspreadsheet": "^5.8",
+        "yahnis-elsts/plugin-update-checker": "^5.7"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^10.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Webane\\Jalagistrasi\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Webane\\Jalagistrasi\\Tests\\": "tests/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "sort-packages": true,
+        "allow-plugins": {}
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

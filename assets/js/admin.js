@@ -1,0 +1,1 @@
+document.addEventListener("DOMContentLoaded",function(){document.querySelectorAll(".jg-delete-btn").forEach(function(e){e.addEventListener("click",function(n){var t=e.getAttribute("data-confirm")||"Yakin ingin menghapus?";window.confirm(t)||n.preventDefault()})})});

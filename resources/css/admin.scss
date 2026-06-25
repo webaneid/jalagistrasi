@@ -1,0 +1,5 @@
+@tailwind components;
+@tailwind utilities;
+
+// Admin: tidak pakai @tailwind base karena WordPress admin sudah punya base styles sendiri.
+// Semua utility di-scope via important: '#jalagistrasi-wrap' di tailwind.config.js.

@@ -1,0 +1,19 @@
+# Dependency — di-build ulang otomatis saat rilis lewat GitHub Actions
+# (lihat docs/arsitektur-update-plugin.md §5), TIDAK di-commit supaya histori
+# git tidak bengkak tiap composer/npm update.
+/vendor/
+/node_modules/
+
+# File lokal developer/OS — bukan bagian dari plugin.
+.DS_Store
+*.log
+
+# Editor/IDE & tooling sesi lokal — bukan bagian dari plugin.
+.claude/
+.vscode/
+.idea/
+
+# Test coverage report (kalau nanti phpunit dijalankan dengan coverage).
+/coverage/
+.phpunit.cache/
+.phpunit.result.cache
