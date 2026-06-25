@@ -37,7 +37,7 @@ final class Plugin
     {
         $this->defineConstants();
         $this->registerHooks();
-        $this->initUpdateChecker();
+        self::buildUpdateChecker();
     }
 
     /**
@@ -95,6 +95,7 @@ final class Plugin
         $pengaturanCtrl = new PengaturanController();
         add_action('admin_post_jg_save_pengaturan', [$pengaturanCtrl, 'handleSave']);
         add_action('admin_post_jg_sync_wilayah',    [$pengaturanCtrl, 'handleSyncWilayah']);
+        add_action('admin_post_jg_check_update',    [$pengaturanCtrl, 'handleCheckUpdate']);
 
         $pendaftaranCtrl = new PendaftaranController();
         add_action('admin_post_jg_submit_pendaftaran',    [$pendaftaranCtrl, 'handleSubmit']);
@@ -138,11 +139,18 @@ final class Plugin
      * Versi yang dibandingkan PUC diambil dari header `Version:` di jalagistrasi.php
      * — WAJIB disinkronkan manual dengan konstanta self::VERSION tiap rilis
      * (lihat checklist rilis di docs/arsitektur-update-plugin.md §6).
+     *
+     * Method ini PUBLIC STATIC (bukan dipanggil sekali saja di constructor) supaya
+     * PengaturanController bisa bikin instance yang sama untuk tombol "Cek Update
+     * Sekarang" & tampilan versi terbaru di tab Update — satu sumber konfigurasi,
+     * tidak duplikat parameter repo/slug di dua tempat.
+     *
+     * @return \YahnisElsts\PluginUpdateChecker\v5\Plugin\UpdateChecker|null null kalau library belum terpasang
      */
-    private function initUpdateChecker(): void
+    public static function buildUpdateChecker(): ?object
     {
         if (!class_exists(\YahnisElsts\PluginUpdateChecker\v5\PucFactory::class)) {
-            return;
+            return null;
         }
 
         $updateChecker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
@@ -153,6 +161,8 @@ final class Plugin
 
         $updateChecker->setBranch('main');
         $updateChecker->getVcsApi()->enableReleaseAssets('/\.zip($|[?&#])/i');
+
+        return $updateChecker;
     }
 
     /**

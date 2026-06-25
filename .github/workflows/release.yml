@@ -1,0 +1,59 @@
+name: Build & Release
+
+# Lihat docs/arsitektur-update-plugin.md §5 — workflow ini membangun paket plugin
+# yang SIAP PAKAI (vendor/ sudah composer install --no-dev, assets/ sudah di-build)
+# dan menempelkannya sebagai Release asset. Plugin Update Checker (PUC) di
+# src/Plugin.php membaca asset ini, BUKAN "Source code (zip)" otomatis GitHub —
+# soalnya source-code-zip otomatis tidak berisi vendor/ (di-gitignore di repo ini).
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer
+
+      - name: Install dependency produksi (tanpa dev — phpunit dkk dikecualikan)
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Build assets (CSS/JS)
+        run: |
+          npm ci
+          npm run build
+
+      - name: Susun folder plugin siap pakai
+        run: |
+          mkdir -p build/jalagistrasi
+          rsync -a . build/jalagistrasi/ \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.gitignore' \
+            --exclude='node_modules' \
+            --exclude='build' \
+            --exclude='resources' \
+            --exclude='tests' \
+            --exclude='.DS_Store'
+          cd build && zip -r ../jalagistrasi-${GITHUB_REF_NAME}.zip jalagistrasi -x '*.DS_Store'
+
+      - name: Attach zip ke GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: jalagistrasi-${{ github.ref_name }}.zip
+          generate_release_notes: true

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Webane\Jalagistrasi\Admin;
 
+use Webane\Jalagistrasi\Plugin;
+
 /**
  * Halaman Pengaturan plugin — setting dasar yang mempengaruhi seluruh sistem.
  */
@@ -52,19 +54,42 @@ final class PengaturanController
             wp_die(esc_html__('Anda tidak punya akses.', 'jalagistrasi'), 403);
         }
 
+        $tab = sanitize_key($_GET['tab'] ?? 'umum');
+        $message = sanitize_text_field($_GET['message'] ?? '');
+        $baseUrl = admin_url('admin.php?page=jg-pengaturan');
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e('Pengaturan Jalagistrasi PMB', 'jalagistrasi'); ?></h1>
+
+            <h2 class="nav-tab-wrapper">
+                <a href="<?php echo esc_url($baseUrl . '&tab=umum'); ?>" class="nav-tab <?php echo $tab === 'umum' ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e('Umum', 'jalagistrasi'); ?>
+                </a>
+                <a href="<?php echo esc_url($baseUrl . '&tab=update'); ?>" class="nav-tab <?php echo $tab === 'update' ? 'nav-tab-active' : ''; ?>">
+                    <?php esc_html_e('Update', 'jalagistrasi'); ?>
+                </a>
+            </h2>
+
+            <?php if ($tab === 'update') : ?>
+                <?php $this->renderTabUpdate($message); ?>
+            <?php else : ?>
+                <?php $this->renderTabUmum($message); ?>
+            <?php endif; ?>
+        </div>
+        <?php
+    }
+
+    private function renderTabUmum(string $message): void
+    {
         wp_enqueue_media();
         wp_enqueue_style('wp-color-picker');
         wp_enqueue_script('wp-color-picker');
 
-        $message    = sanitize_text_field($_GET['message'] ?? '');
         $logoId     = (int) get_option('jalagistrasi_logo_id', 0);
         $logoUrl    = $logoId > 0 ? wp_get_attachment_image_url($logoId, 'medium') : '';
         $warnaBrand    = (string) get_option('jalagistrasi_warna_brand', '#2563eb');
         $warnaSekunder = (string) get_option('jalagistrasi_warna_sekunder', '#f59e0b');
         ?>
-        <div class="wrap">
-            <h1><?php esc_html_e('Pengaturan Jalagistrasi PMB', 'jalagistrasi'); ?></h1>
-
             <?php if ($message === 'saved') : ?>
                 <div class="notice notice-success is-dismissible">
                     <p><?php esc_html_e('Pengaturan berhasil disimpan.', 'jalagistrasi'); ?></p>
@@ -76,6 +101,10 @@ final class PengaturanController
             <?php elseif ($message === 'invalid_warna') : ?>
                 <div class="notice notice-error is-dismissible">
                     <p><?php esc_html_e('Format warna brand tidak valid — gunakan color picker.', 'jalagistrasi'); ?></p>
+                </div>
+            <?php elseif ($message === 'wilayah_synced') : ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php esc_html_e('Data wilayah berhasil disinkronkan.', 'jalagistrasi'); ?></p>
                 </div>
             <?php endif; ?>
 
@@ -165,11 +194,6 @@ final class PengaturanController
             <hr style="margin:32px 0;">
 
             <h2><?php esc_html_e('Data Wilayah Indonesia', 'jalagistrasi'); ?></h2>
-            <?php if ($message === 'wilayah_synced') : ?>
-                <div class="notice notice-success is-dismissible">
-                    <p><?php esc_html_e('Data wilayah berhasil disinkronkan.', 'jalagistrasi'); ?></p>
-                </div>
-            <?php endif; ?>
             <p class="description">
                 <?php
                 printf(
@@ -185,7 +209,6 @@ final class PengaturanController
                 <button type="submit" class="button"><?php esc_html_e('Sync Data Wilayah', 'jalagistrasi'); ?></button>
                 <p class="description"><?php esc_html_e('Jalankan ulang kalau file data/wilayah.csv di plugin sudah diperbarui (mis. ada pemekaran wilayah baru).', 'jalagistrasi'); ?></p>
             </form>
-        </div>
         <script>
         jQuery(function ($) {
             $('.jg-color-picker').wpColorPicker();
@@ -219,6 +242,56 @@ final class PengaturanController
             });
         })();
         </script>
+        <?php
+    }
+
+    private function renderTabUpdate(string $message): void
+    {
+        $updateChecker = Plugin::buildUpdateChecker();
+        $installedVersion = Plugin::VERSION;
+        $lastChecked = get_option('jalagistrasi_update_last_checked', '');
+
+        $update = $updateChecker?->getUpdate();
+        $latestVersion = $update?->version;
+        ?>
+            <?php if ($message === 'checked') : ?>
+                <div class="notice notice-success is-dismissible">
+                    <p><?php esc_html_e('Pengecekan update selesai.', 'jalagistrasi'); ?></p>
+                </div>
+            <?php endif; ?>
+
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row"><?php esc_html_e('Versi Terpasang', 'jalagistrasi'); ?></th>
+                    <td><code><?php echo esc_html($installedVersion); ?></code></td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e('Versi Terbaru', 'jalagistrasi'); ?></th>
+                    <td>
+                        <?php if ($latestVersion) : ?>
+                            <code><?php echo esc_html($latestVersion); ?></code>
+                            <span class="description"> — <?php esc_html_e('update tersedia, buka halaman Plugins untuk update.', 'jalagistrasi'); ?></span>
+                        <?php else : ?>
+                            <span class="description"><?php esc_html_e('Anda sudah menggunakan versi terbaru (atau belum pernah dicek).', 'jalagistrasi'); ?></span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e('Terakhir Dicek', 'jalagistrasi'); ?></th>
+                    <td>
+                        <?php echo $lastChecked !== '' ? esc_html(date_i18n('d M Y H:i', strtotime((string) $lastChecked))) : '—'; ?>
+                    </td>
+                </tr>
+            </table>
+
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('jg_check_update'); ?>
+                <input type="hidden" name="action" value="jg_check_update">
+                <button type="submit" class="button button-primary"><?php esc_html_e('Cek Update Sekarang', 'jalagistrasi'); ?></button>
+                <p class="description">
+                    <?php esc_html_e('Sumber update: GitHub Releases repo webaneid/jalagistrasi (branch main).', 'jalagistrasi'); ?>
+                </p>
+            </form>
         <?php
     }
 
@@ -304,6 +377,30 @@ final class PengaturanController
 
         wp_safe_redirect(add_query_arg(
             ['page' => 'jg-pengaturan', 'message' => 'wilayah_synced'],
+            admin_url('admin.php')
+        ));
+        exit;
+    }
+
+    /**
+     * Force-refresh pengecekan update dari GitHub (bypass interval cache 12 jam
+     * default PUC). Hook: admin_post_jg_check_update
+     */
+    public function handleCheckUpdate(): void
+    {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('Tidak punya akses.', 'jalagistrasi'), 403);
+        }
+
+        check_admin_referer('jg_check_update');
+
+        $updateChecker = Plugin::buildUpdateChecker();
+        $updateChecker?->checkForUpdates();
+
+        update_option('jalagistrasi_update_last_checked', current_time('mysql'));
+
+        wp_safe_redirect(add_query_arg(
+            ['page' => 'jg-pengaturan', 'tab' => 'update', 'message' => 'checked'],
             admin_url('admin.php')
         ));
         exit;
