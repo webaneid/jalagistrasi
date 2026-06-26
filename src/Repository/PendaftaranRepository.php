@@ -105,6 +105,40 @@ final class PendaftaranRepository
         ) !== false;
     }
 
+    /**
+     * Token rahasia untuk URL verifikasi QR (/verifikasi/<nomor>/<token>/) —
+     * lihat docs/arsitektur-verifikasi-qr.md. Dibuat sekali saat submit pertama,
+     * tidak pernah berubah lagi setelahnya.
+     */
+    public function updateVerifikasiToken(int $id, string $token): bool
+    {
+        global $wpdb;
+
+        return $wpdb->update(
+            $this->table,
+            ['verifikasi_token' => $token],
+            ['id' => $id],
+            ['%s'],
+            ['%d']
+        ) !== false;
+    }
+
+    /**
+     * Cari berdasarkan nomor_pendaftaran SAJA (belum cek token) — dipakai
+     * VerifikasiController yang lalu memvalidasi token-nya sendiri dengan
+     * hash_equals() supaya konstan-waktu (hindari timing attack).
+     */
+    public function findByNomor(string $nomor): ?object
+    {
+        global $wpdb;
+
+        $row = $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM {$this->table} WHERE nomor_pendaftaran = %s", $nomor)
+        );
+
+        return $row ?: null;
+    }
+
     public function countByGelombang(int $gelombangId): int
     {
         global $wpdb;

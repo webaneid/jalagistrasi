@@ -26,7 +26,13 @@ $gradStop2 = $colorGen->mixTowardBlack($theme['brand'], 0.70); // titik terang a
 $gradStop3 = $colorGen->mixTowardBlack($theme['brand'], 0.80); // gelap lagi
 $gradStop4 = $colorGen->mixTowardBlack($theme['brand'], 0.90); // paling gelap
 
+// Prioritas tampilan identitas institusi: logo > nama institusi > nama situs WP.
+// Lihat percakapan "logo prioritas di form login" — pola sama dipakai di halaman
+// info pendaftaran publik.
 $namaInstitusi = (string) get_option('jalagistrasi_nama_institusi', '');
+$logoId        = (int) get_option('jalagistrasi_logo_id', 0);
+$logoUrl       = $logoId > 0 ? (string) wp_get_attachment_image_url($logoId, 'medium') : '';
+$namaTampil    = $namaInstitusi !== '' ? $namaInstitusi : (string) get_bloginfo('name');
 
 $old_nama_lengkap = esc_attr($registerOld['nama_lengkap'] ?? '');
 $old_email_reg    = esc_attr($registerOld['email'] ?? '');
@@ -38,10 +44,10 @@ $old_nomor_wa     = esc_attr($registerOld['nomor_wa'] ?? '');
     <div class="jg-auth-card">
 
         <div class="text-center" style="margin-bottom:28px;">
-            <?php if ($namaInstitusi !== '') : ?>
-                <span class="jg-auth-badge"><?php echo esc_html(mb_strtoupper($namaInstitusi)); ?></span>
+            <?php if ($logoUrl !== '') : ?>
+                <img src="<?php echo esc_url($logoUrl); ?>" alt="<?php echo esc_attr($namaTampil); ?>" class="jg-auth-logo">
             <?php else : ?>
-                <span class="jg-auth-badge"><?php esc_html_e('AKSES PENDAFTARAN', 'jalagistrasi'); ?></span>
+                <span class="jg-auth-badge"><?php echo esc_html(mb_strtoupper($namaTampil)); ?></span>
             <?php endif; ?>
             <h1 class="jg-auth-title"><?php esc_html_e('Masuk atau Daftar Baru', 'jalagistrasi'); ?></h1>
         </div>
@@ -182,6 +188,17 @@ $old_nomor_wa     = esc_attr($registerOld['nomor_wa'] ?? '');
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+#jalagistrasi-wrap .jg-auth-logo {
+    max-height: 56px;
+    max-width: 200px;
+    margin: 0 auto 16px;
+    display: block;
+    object-fit: contain;
+    /* Logo asli biasanya berwarna/gelap — paksa siluet putih solid supaya
+       kontras di atas kartu glass gelap (sama seperti halaman info publik). */
+    filter: brightness(0) invert(1);
 }
 
 #jalagistrasi-wrap .jg-auth-badge {

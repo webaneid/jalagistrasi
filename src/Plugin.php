@@ -26,8 +26,8 @@ use Webane\Jalagistrasi\Frontend\RegistrasiController;
  */
 final class Plugin
 {
-    public const VERSION     = '0.1.2';
-    public const DB_VERSION  = '6';
+    public const VERSION     = '0.2.0';
+    public const DB_VERSION  = '7';
     public const SLUG        = 'jalagistrasi';
     public const TEXT_DOMAIN = 'jalagistrasi';
 
@@ -82,9 +82,16 @@ final class Plugin
         add_action('init', [$this, 'loadTextDomain']);
         add_action('init', [$this, 'registerShortcodes']);
         add_action('init', [$this, 'maybeCreatePages']);
+        add_action('init', [$this, 'registerVerifikasiRewriteRule']);
+        add_filter('query_vars', [$this, 'addVerifikasiQueryVars']);
+        add_action('template_redirect', [$this, 'maybeRenderVerifikasi']);
         add_action('wp_enqueue_scripts', [$this, 'enqueueFrontendAssets']);
         add_filter('script_loader_tag', [$this, 'addTypeModuleToPluginScripts'], 10, 3);
         add_filter('template_include', [$this, 'maybeUseBlankTemplate']);
+
+        $verifikasiCtrl = new \Webane\Jalagistrasi\Frontend\VerifikasiController();
+        add_action('wp_ajax_nopriv_jg_verifikasi_foto', [$verifikasiCtrl, 'handlePreviewFoto']);
+        add_action('wp_ajax_jg_verifikasi_foto',        [$verifikasiCtrl, 'handlePreviewFoto']);
 
         $loginHandler = new LoginHandler();
         add_filter('login_redirect', [$loginHandler, 'redirectAfterLogin'], 10, 3);
@@ -228,6 +235,7 @@ final class Plugin
         $blankPageIds = [
             (int) get_option('jalagistrasi_page_registrasi', 0),
             (int) get_option('jalagistrasi_page_dashboard', 0),
+            (int) get_option('jalagistrasi_page_info', 0),
         ];
 
         foreach ($blankPageIds as $pageId) {
@@ -237,6 +245,48 @@ final class Plugin
         }
 
         return $template;
+    }
+
+    /**
+     * URL publik halaman verifikasi QR: /verifikasi/<nomor>/<token>/ — TIDAK
+     * pakai WP Page biasa (beda dari halaman lain) karena perlu 2 segmen path
+     * dinamis. Lihat docs/arsitektur-verifikasi-qr.md.
+     */
+    public function registerVerifikasiRewriteRule(): void
+    {
+        add_rewrite_rule(
+            '^verifikasi/([^/]+)/([^/]+)/?$',
+            'index.php?jg_verifikasi_nomor=$matches[1]&jg_verifikasi_token=$matches[2]',
+            'top'
+        );
+    }
+
+    /**
+     * @param list<string> $vars
+     * @return list<string>
+     */
+    public function addVerifikasiQueryVars(array $vars): array
+    {
+        $vars[] = 'jg_verifikasi_nomor';
+        $vars[] = 'jg_verifikasi_token';
+        return $vars;
+    }
+
+    /**
+     * Render halaman verifikasi langsung (bypass template hierarchy WP) kalau
+     * query var dari rewrite rule di atas terisi. exit di dalam render() sendiri.
+     */
+    public function maybeRenderVerifikasi(): void
+    {
+        $nomor = get_query_var('jg_verifikasi_nomor', '');
+        if ($nomor === '') {
+            return;
+        }
+
+        (new \Webane\Jalagistrasi\Frontend\VerifikasiController())->render(
+            (string) $nomor,
+            (string) get_query_var('jg_verifikasi_token', '')
+        );
     }
 
     public function maybeCreatePages(): void
@@ -363,6 +413,10 @@ final class Plugin
                 (new \Webane\Jalagistrasi\Service\WilayahImportService())->import();
             }
 
+            if (version_compare($installedDbVersion, '7', '<')) {
+                $this->migrateVerifikasiToken();
+            }
+
             update_option('jalagistrasi_db_version', self::DB_VERSION);
         }
     }
@@ -442,5 +496,33 @@ final class Plugin
         // 3. Drop kolom lama — dbDelta tidak bisa drop kolom, jadi manual.
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         $wpdb->query("ALTER TABLE {$gelombangTable} DROP COLUMN tahun_akademik");
+    }
+
+    /**
+     * Migrasi satu kali: backfill verifikasi_token untuk pendaftaran yang sudah
+     * ada SEBELUM fitur QR verifikasi ini dibuat (token dipakai sebagai kunci
+     * rahasia di URL /verifikasi/<nomor>/<token>/ — lihat docs/arsitektur-verifikasi-qr.md).
+     * Sekaligus flush rewrite rules karena rule baru /verifikasi/.../.../ ditambahkan
+     * di versi DB ini — tanpa flush, URL itu akan 404 sampai ada yang flush manual
+     * (mis. simpan ulang halaman Permalinks).
+     */
+    private function migrateVerifikasiToken(): void
+    {
+        global $wpdb;
+
+        $table = $wpdb->prefix . 'jg_pendaftaran';
+        $rows  = $wpdb->get_col("SELECT id FROM {$table} WHERE verifikasi_token IS NULL OR verifikasi_token = ''");
+
+        foreach ($rows as $id) {
+            $wpdb->update(
+                $table,
+                ['verifikasi_token' => bin2hex(random_bytes(16))],
+                ['id' => (int) $id],
+                ['%s'],
+                ['%d']
+            );
+        }
+
+        flush_rewrite_rules();
     }
 }

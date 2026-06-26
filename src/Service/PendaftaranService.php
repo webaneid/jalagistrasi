@@ -240,6 +240,10 @@ final class PendaftaranService
         } else {
             $nomor = $this->nomorService->generate($gelombangId, $gelombang->tahun_akademik);
             $this->pendaftaranRepo->updateNomor($pendaftaranId, $nomor);
+            // Token rahasia untuk QR/URL verifikasi (/verifikasi/<nomor>/<token>/) —
+            // dibuat sekali di sini, tidak pernah berubah lagi. Lihat
+            // docs/arsitektur-verifikasi-qr.md.
+            $this->pendaftaranRepo->updateVerifikasiToken($pendaftaranId, bin2hex(random_bytes(16)));
             $this->pendaftaranRepo->updateStatus($pendaftaranId, StatusPendaftaran::Submitted->value, current_time('mysql'));
 
             (new StatusHistoryRepository())->log(

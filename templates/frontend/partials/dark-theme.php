@@ -108,6 +108,16 @@ if (!function_exists('jg_render_base_styles')) {
             text-overflow: ellipsis;
         }
 
+        /* Prioritas tampilan identitas institusi di topbar: logo > nama institusi >
+           nama situs WP — sama seperti halaman info publik & login/daftar. */
+        #jalagistrasi-wrap .jg-brand-logo {
+            max-height: 28px;
+            max-width: 140px;
+            object-fit: contain;
+            display: block;
+            filter: brightness(0) invert(1);
+        }
+
         #jalagistrasi-wrap .jg-user {
             display: flex;
             align-items: center;

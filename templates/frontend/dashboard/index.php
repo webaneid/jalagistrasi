@@ -13,7 +13,12 @@ defined('ABSPATH') || exit;
 require_once JG_PLUGIN_DIR . 'templates/frontend/partials/dark-theme.php';
 $theme = jg_theme_colors();
 
+// Prioritas tampilan identitas institusi: logo > nama institusi > nama situs WP.
+// Pola sama dipakai di halaman info pendaftaran publik & login/daftar.
 $namaInstitusi = (string) get_option('jalagistrasi_nama_institusi', '');
+$logoId        = (int) get_option('jalagistrasi_logo_id', 0);
+$logoUrl       = $logoId > 0 ? (string) wp_get_attachment_image_url($logoId, 'medium') : '';
+$namaTampil    = $namaInstitusi !== '' ? $namaInstitusi : (string) get_bloginfo('name');
 $dashboardUrl  = (string) get_permalink();
 
 // ---------------------------------------------------------------------------
@@ -72,8 +77,12 @@ if (!$heroPendaftaran && !empty($riwayat)) {
 }
 $riwayatLain = array_filter($riwayat, fn ($p) => !$heroPendaftaran || $p->id !== $heroPendaftaran->id);
 
+// current_time('H') sudah otomatis ikut timezone situs (Settings > General >
+// Timezone di wp-admin) — kalau sapaan terasa salah jam, itu setting timezone
+// situsnya yang perlu dicek, bukan logic ini.
 $jam = (int) current_time('H');
-$sapaan = $jam < 11 ? 'Selamat pagi' : ($jam < 15 ? 'Selamat siang' : ($jam < 19 ? 'Selamat sore' : 'Selamat malam'));
+$sapaanWaktu = $jam < 11 ? 'Selamat pagi' : ($jam < 15 ? 'Selamat siang' : ($jam < 19 ? 'Selamat sore' : 'Selamat malam'));
+$sapaan = "Assalamu'alaikum, {$sapaanWaktu}";
 
 $namaDepan = explode(' ', trim($user->display_name))[0] ?? $user->display_name;
 $inisial   = mb_strtoupper(mb_substr($user->display_name, 0, 1));
@@ -84,7 +93,11 @@ $inisial   = mb_strtoupper(mb_substr($user->display_name, 0, 1));
     <!-- Top bar -->
     <div class="jg-topbar">
         <div class="jg-topbar-inner">
-            <span class="jg-brand"><?php echo esc_html($namaInstitusi !== '' ? $namaInstitusi : __('Portal Pendaftaran', 'jalagistrasi')); ?></span>
+            <?php if ($logoUrl !== '') : ?>
+                <img src="<?php echo esc_url($logoUrl); ?>" alt="<?php echo esc_attr($namaTampil); ?>" class="jg-brand-logo">
+            <?php else : ?>
+                <span class="jg-brand"><?php echo esc_html($namaTampil); ?></span>
+            <?php endif; ?>
             <div class="jg-user">
                 <span class="jg-avatar"><?php echo esc_html($inisial); ?></span>
                 <span class="jg-user-name"><?php echo esc_html($user->display_name); ?></span>
@@ -172,7 +185,18 @@ $inisial   = mb_strtoupper(mb_substr($user->display_name, 0, 1));
                     </div>
                 <?php endif; ?>
 
-                <a href="<?php echo esc_url($ctaUrl); ?>" class="jg-btn"><?php echo esc_html($ctaLabel); ?> →</a>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                    <a href="<?php echo esc_url($ctaUrl); ?>" class="jg-btn"><?php echo esc_html($ctaLabel); ?> →</a>
+
+                    <?php if (!empty($p->verifikasi_token)) : ?>
+                        <?php
+                        $kartuPesertaUrl = home_url('/verifikasi/' . rawurlencode($p->nomor_pendaftaran) . '/' . rawurlencode((string) $p->verifikasi_token) . '/');
+                        ?>
+                        <a href="<?php echo esc_url($kartuPesertaUrl); ?>" target="_blank" rel="noopener" class="jg-btn jg-btn--outline">
+                            <?php esc_html_e('Tampilkan Kartu CAMABA', 'jalagistrasi'); ?>
+                        </a>
+                    <?php endif; ?>
+                </div>
             </div>
         <?php endif; ?>
 
