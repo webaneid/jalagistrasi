@@ -26,7 +26,7 @@ use Webane\Jalagistrasi\Frontend\RegistrasiController;
  */
 final class Plugin
 {
-    public const VERSION     = '0.1.1';
+    public const VERSION     = '0.1.2';
     public const DB_VERSION  = '6';
     public const SLUG        = 'jalagistrasi';
     public const TEXT_DOMAIN = 'jalagistrasi';
@@ -161,10 +161,23 @@ final class Plugin
      * Sekarang" & tampilan versi terbaru di tab Update — satu sumber konfigurasi,
      * tidak duplikat parameter repo/slug di dua tempat.
      *
+     * SINGLETON per request (static cache di $updateCheckerInstance) — WAJIB,
+     * bukan sekadar optimisasi. PUC menolak keras instansiasi dobel untuk slug
+     * yang sama dalam satu request (lempar E_USER_ERROR "Slugs must be unique"
+     * kalau WP_DEBUG aktif) — kejadian nyata waktu method ini dipanggil dari
+     * boot() DAN renderTabUpdate() dalam request yang sama. Lihat percakapan
+     * "critical error di tab Update".
+     *
      * @return \YahnisElsts\PluginUpdateChecker\v5\Plugin\UpdateChecker|null null kalau library belum terpasang
      */
     public static function buildUpdateChecker(): ?object
     {
+        static $updateCheckerInstance = null;
+
+        if ($updateCheckerInstance !== null) {
+            return $updateCheckerInstance;
+        }
+
         if (!class_exists(\YahnisElsts\PluginUpdateChecker\v5\PucFactory::class)) {
             return null;
         }
@@ -178,7 +191,9 @@ final class Plugin
         $updateChecker->setBranch('main');
         $updateChecker->getVcsApi()->enableReleaseAssets('/\.zip($|[?&#])/i');
 
-        return $updateChecker;
+        $updateCheckerInstance = $updateChecker;
+
+        return $updateCheckerInstance;
     }
 
     /**

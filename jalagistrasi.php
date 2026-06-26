@@ -3,7 +3,7 @@
  * Plugin Name:       Jalagistrasi
  * Plugin URI:        https://webane.id
  * Description:       Sistem Pendaftaran Mahasiswa Baru untuk WordPress.
- * Version:           0.1.1
+ * Version:           0.1.2
  * Requires at least: 6.4
  * Requires PHP:      8.1
  * Author:            Webane Indonesia

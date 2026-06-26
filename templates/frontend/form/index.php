@@ -29,10 +29,12 @@ $backUrl = ($isEditMode && $draftPendaftaranId)
     ? add_query_arg(['action' => 'detail', 'pendaftaran_id' => $draftPendaftaranId], $dashboardUrl)
     : $dashboardUrl;
 
-// Helper: ambil nilai tersimpan atau fallback
+// Helper: ambil nilai tersimpan atau fallback. Field checkbox tersimpan sebagai
+// array (termasuk saat repopulate dari $_POST setelah validasi gagal) — cast
+// array ke string memicu warning "Array to string conversion" tanpa ini.
 $val = function (string $namaField, string $default = '') use ($savedData): string {
     $v = $savedData[$namaField] ?? $default;
-    return (string) $v;
+    return is_array($v) ? '' : (string) $v;
 };
 
 // Mapping tipe field ke HTML input type
