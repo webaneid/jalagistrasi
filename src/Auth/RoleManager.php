@@ -74,4 +74,47 @@ final class RoleManager
             );
         }
     }
+
+    /**
+     * Sembunyikan role `pendaftar` dari wp-admin/users.php — lihat
+     * docs/arsitektur-overview.md ("Autentikasi & Role"). `pendaftar` bukan
+     * "user situs" tradisional, jumlahnya bisa ratusan/ribuan, dan sudah ada
+     * halaman khusus (jg-pendaftar, jg-akun-pendaftar) untuk kelola mereka
+     * dengan konteks PMB yang Users biasa tidak punya.
+     *
+     * Hook: pre_get_users. SENGAJA di-scope cuma ke halaman admin users.php
+     * (bukan filter global) — supaya tidak ada efek samping di WP_User_Query
+     * lain (mis. dropdown pilih penulis post).
+     */
+    public static function hidePendaftarFromUsersList(\WP_User_Query $query): void
+    {
+        if (!is_admin()) {
+            return;
+        }
+
+        global $pagenow;
+        if ($pagenow !== 'users.php') {
+            return;
+        }
+
+        $excluded = $query->get('role__not_in');
+        $excluded = is_array($excluded) ? $excluded : array_filter([$excluded]);
+        $excluded[] = self::ROLE_PENDAFTAR;
+
+        $query->set('role__not_in', $excluded);
+    }
+
+    /**
+     * Hapus tab/link jumlah "Pendaftar (N)" di atas tabel Users — supaya tidak
+     * ada link yang mengarah ke role yang sudah disembunyikan dari list utama
+     * (lihat hidePendaftarFromUsersList()). Hook: views_users
+     *
+     * @param array<string,string> $views
+     * @return array<string,string>
+     */
+    public static function hidePendaftarFromRoleViews(array $views): array
+    {
+        unset($views[self::ROLE_PENDAFTAR]);
+        return $views;
+    }
 }

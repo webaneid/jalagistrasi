@@ -72,6 +72,19 @@ class AdminMenu
             [$pendaftarCtrl, 'renderPage']
         );
 
+        // Diletakkan TEPAT di bawah "Pendaftar" sengaja — beda lingkup: ini
+        // SEMUA akun ber-role pendaftar (termasuk yang belum pernah submit),
+        // bukan cuma yang sudah submit pendaftaran. Lihat docs/arsitektur-overview.md.
+        $akunPendaftarCtrl = new AkunPendaftarController();
+        add_submenu_page(
+            'jg-dashboard',
+            __('Role Pendaftar', 'jalagistrasi'),
+            __('Role Pendaftar', 'jalagistrasi'),
+            'manage_options',
+            'jg-akun-pendaftar',
+            [$akunPendaftarCtrl, 'renderPage']
+        );
+
         $tipeBerkasCtrl = new TipeBerkasController();
         add_submenu_page(
             'jg-dashboard',

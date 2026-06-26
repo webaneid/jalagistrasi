@@ -94,6 +94,48 @@ Sementara: **WordPress `administrator`** menangani semua fungsi admin. Roles dik
 
 **Dashboard front-end custom** untuk pendaftar (di luar wp-admin). Setelah login sebagai `pendaftar`, WordPress me-redirect ke halaman dashboard custom ini, bukan ke `/wp-admin`.
 
+**Rencana (belum dieksekusi, 2026-06-26): sembunyikan role `pendaftar` dari `wp-admin/users.php`.**
+
+*Alasan:* `pendaftar` bukan "user situs" dalam arti tradisional (staff/editor) — itu calon mahasiswa. Begitu jumlahnya ratusan/ribuan, tabel Users jadi penuh sesak dan menyulitkan admin mencari akun staff sungguhan. Sudah ada halaman khusus (`jg-pendaftar`, lihat docs/arsitektur-admin-panel.md) yang jauh lebih kaya konteks (status, gelombang, dokumen) untuk kelola pendaftar — Users biasa tidak punya konteks itu sama sekali, berisiko admin salah aksi lewat `user-edit.php` native.
+
+*Mekanisme (WordPress tidak punya API resmi "sembunyikan role", tapi ada hook yang pas):*
+1. Filter `pre_get_users` — **scoped HANYA ke halaman admin `users.php`** (cek `$pagenow` atau `get_current_screen()->id === 'users'`, JANGAN filter global — supaya tidak ada efek samping di tempat lain yang juga pakai `WP_User_Query`, mis. dropdown pilih penulis post). Tambahkan `role__not_in => ['pendaftar']` ke query.
+2. Filter `views_users` — hapus entry "Pendaftar (N)" dari tab/link jumlah role di atas tabel Users, supaya tidak ada link yang mengarah ke role yang sudah disembunyikan dari list utama.
+3. Kalau `role=pendaftar` diketik manual di URL (`users.php?role=pendaftar`) — kombinasi `role` (dari query string) + `role__not_in` (dari filter kita) di `WP_User_Query` otomatis menghasilkan 0 baris (saling kontradiksi), jadi tetap tersembunyi tanpa perlu kode tambahan untuk kasus ini.
+
+*Yang TIDAK disentuh (lingkup sengaja dibatasi):*
+- Dropdown "Ubah ke role..." di bulk action Users — tetap ada `pendaftar` sebagai pilihan (kasus jarang: convert user staff jadi pendaftar manual, tidak perlu diblok).
+- Capability/permission `pendaftar` sendiri — tidak berubah, ini cuma soal visibilitas di UI admin, bukan soal apa yang `pendaftar` boleh akses.
+
+*Rencana lokasi kode:* method baru di `src/Auth/RoleManager.php` (kelas yang sudah pegang konstanta role), didaftarkan via `Plugin::registerHooks()` — konsisten dengan `LoginHandler::blockPendaftarFromAdmin()` yang sudah ada (beda fokus: itu membatasi akses PENDAFTAR ke wp-admin, ini membatasi TAMPILAN pendaftar di mata ADMIN).
+
+**Rencana tambahan (belum dieksekusi, 2026-06-26): menu admin baru "Role Pendaftar" — pengganti yang disembunyikan di atas.**
+
+*Alasan:* menyembunyikan role dari Users saja tidak cukup — admin tetap butuh cara lihat SEMUA akun ber-role `pendaftar`, terlepas dari halaman "Pendaftar" (`jg-pendaftar`) yang sekarang ada. Bedanya:
+
+| | Halaman **"Pendaftar"** (sudah ada) | Menu **"Role Pendaftar"** (baru, rencana) |
+|---|---|---|
+| Sumber data | Tabel `jg_pendaftaran` (1 baris = 1 pendaftaran ke gelombang tertentu) | Tabel `wp_users` (1 baris = 1 akun ber-role `pendaftar`) |
+| Lingkup | Hanya yang sudah submit minimal 1 pendaftaran | SEMUA yang pernah bikin akun — termasuk yang cuma daftar/login lalu tidak pernah isi formulir |
+| Kegunaan | Proses verifikasi & seleksi PMB per gelombang | Database kontak lengkap calon mahasiswa (untuk broadcast/promo email saat fitur email diaktifkan nanti) |
+
+*Isi halaman (rancangan kolom):*
+- Nama, Email, No. WhatsApp (dari `jg_pendaftar`), Tanggal Daftar Akun (`user_registered`)
+- **Badge status keterlibatan** — dihitung dari ada/tidaknya baris `jg_pendaftaran` (status bukan `draft`) milik user itu:
+  - "Sudah Mendaftar" (minimal 1 pendaftaran disubmit ke gelombang manapun)
+  - "Baru Bikin Akun" (akun ada, tidak pernah submit formulir sama sekali)
+- Filter by badge status di atas (Semua / Sudah Mendaftar / Baru Bikin Akun) — ini yang dipakai nanti untuk target broadcast (mis. kirim reminder promo ke yang "Baru Bikin Akun" supaya lanjut daftar).
+- Export Excel — pola sama dengan `PendaftarExportService` yang sudah ada (export Excel di halaman "Pendaftar"), kolom minimal sama dengan tabel di atas. Inilah yang akan jadi sumber data broadcast email nanti.
+
+*Posisi menu:* submenu baru **"Role Pendaftar"**, diletakkan tepat di bawah submenu **"Pendaftar"** yang sudah ada — supaya hierarki jelas (Pendaftaran = transaksional per gelombang, Role Pendaftar = akun secara keseluruhan), sesuai permintaan user supaya "tidak rancu".
+
+*Rencana lokasi kode:*
+- Controller baru: `src/Admin/AkunPendaftarController.php`
+- Query: perlu join manual `$wpdb` antara `wp_users`/`wp_usermeta` (filter role) dengan subquery `EXISTS` ke `jg_pendaftaran` (status keterlibatan) — bukan `WP_User_Query` biasa karena butuh join ke tabel custom plugin.
+- Template: `templates/admin/akun-pendaftar/list.php`
+- Menu: tambahan di `AdminMenu::registerMenus()`, posisi setelah submenu Pendaftar.
+- Export: service baru atau extend `PendaftarExportService` — diputuskan nanti saat mulai implementasi.
+
 ### 2. Manajemen Gelombang (Dinamis)
 
 Admin membuat gelombang dengan:

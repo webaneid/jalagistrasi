@@ -26,7 +26,7 @@ use Webane\Jalagistrasi\Frontend\RegistrasiController;
  */
 final class Plugin
 {
-    public const VERSION     = '0.2.0';
+    public const VERSION     = '0.2.1';
     public const DB_VERSION  = '7';
     public const SLUG        = 'jalagistrasi';
     public const TEXT_DOMAIN = 'jalagistrasi';
@@ -97,6 +97,9 @@ final class Plugin
         add_filter('login_redirect', [$loginHandler, 'redirectAfterLogin'], 10, 3);
         add_action('admin_init', [$loginHandler, 'blockPendaftarFromAdmin']);
 
+        add_action('pre_get_users', [\Webane\Jalagistrasi\Auth\RoleManager::class, 'hidePendaftarFromUsersList']);
+        add_filter('views_users',   [\Webane\Jalagistrasi\Auth\RoleManager::class, 'hidePendaftarFromRoleViews']);
+
         $adminMenu = new AdminMenu();
         add_action('admin_menu', [$adminMenu, 'registerMenus']);
         add_action('admin_enqueue_scripts', [$adminMenu, 'enqueueAdminAssets']);
@@ -131,6 +134,9 @@ final class Plugin
         add_action('admin_post_jg_export_pendaftar',          [$pendaftarCtrl, 'handleExportExcel']);
         add_action('wp_ajax_jg_export_preview_berkas',        [$pendaftarCtrl, 'handleExportPreviewBerkas']);
         add_action('wp_ajax_jg_export_preview_pembayaran',    [$pendaftarCtrl, 'handleExportPreviewPembayaran']);
+
+        $akunPendaftarCtrl = new \Webane\Jalagistrasi\Admin\AkunPendaftarController();
+        add_action('admin_post_jg_export_akun_pendaftar', [$akunPendaftarCtrl, 'handleExportExcel']);
 
         $tipeBerkasCtrl = new \Webane\Jalagistrasi\Admin\TipeBerkasController();
         add_action('admin_post_jg_save_tipe_berkas',   [$tipeBerkasCtrl, 'handleSave']);
